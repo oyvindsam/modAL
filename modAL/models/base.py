@@ -162,7 +162,21 @@ class BaseLearner(ABC, BaseEstimator):
             self.estimator.fit(self.X_training, self.y_training, **fit_kwargs)
         else:
             n_instances = self.X_training.shape[0]
-            bootstrap_idx = np.random.choice(range(n_instances), n_instances, replace=True)
+
+            # Fix bootstrapping on unbalanced train data
+            # https://github.com/modAL-python/modAL/issues/102
+            bootstrap_idx = np.array([], dtype=int)
+            classes = np.unique(self.y_training)
+            for y in classes:
+                idx = np.where(self.y_training == y)[0]
+                bootstrap_idx = np.append(bootstrap_idx, np.random.choice(idx, 1))
+
+            bootstrap_idx = np.append(
+                bootstrap_idx,
+                np.random.choice(
+                    range(n_instances),
+                    n_instances - len(classes),
+                    replace=True))
             self.estimator.fit(self.X_training[bootstrap_idx], self.y_training[bootstrap_idx], **fit_kwargs)
 
         return self
