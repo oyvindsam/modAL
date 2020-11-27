@@ -8,6 +8,7 @@ import sys
 import warnings
 from typing import Union, Callable, Optional, Tuple, List, Iterator, Any
 
+import dask
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.ensemble._base import _BaseHeterogeneousEnsemble
@@ -351,8 +352,12 @@ class BaseCommittee(ABC, BaseEstimator):
                 using bagging to build the ensemble.
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
         """
-        for learner in self.learner_list:
+
+        @dask.delayed
+        def _fit(learner):
             learner._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
+
+        dask.compute([_fit(learner) for learner in self.learner_list])
 
     def _fit_on_new(self, X: modALinput, y: modALinput, bootstrap: bool = False, **fit_kwargs) -> None:
         """
@@ -364,8 +369,13 @@ class BaseCommittee(ABC, BaseEstimator):
             bootstrap: If True, the method trains the model on a set bootstrapped from X.
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
         """
-        for learner in self.learner_list:
+        @dask.delayed
+        def _fit(learner, X, y):
             learner._fit_on_new(X, y, bootstrap=bootstrap, **fit_kwargs)
+
+        X_, y_ = dask.delayed(X), dask.delayed(y)
+        dask.compute([_fit(learner, X_, y_) for learner in self.learner_list])
+
 
     def fit(self, X: modALinput, y: modALinput, **fit_kwargs) -> 'BaseCommittee':
         """
@@ -380,8 +390,13 @@ class BaseCommittee(ABC, BaseEstimator):
             y: The corresponding labels.
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
         """
-        for learner in self.learner_list:
+
+        @dask.delayed
+        def _fit(learner, X, y):
             learner.fit(X, y, **fit_kwargs)
+
+        X_, y_ = dask.delayed(X), dask.delayed(y)
+        dask.compute([_fit(learner, X_, y_) for learner in self.learner_list])
 
         return self
 
