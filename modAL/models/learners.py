@@ -4,6 +4,7 @@ from typing import Callable, Optional, Tuple, List, Any
 
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
+import dask
 
 from modAL.models.base import BaseLearner, BaseCommittee
 from modAL.utils.validation import check_class_labels, check_class_proba
@@ -411,9 +412,13 @@ class Committee(BaseCommittee):
         """
         prediction = np.zeros(shape=(X.shape[0], len(self.learner_list)))
 
-        for learner_idx, learner in enumerate(self.learner_list):
+        print('vote')
+
+        @dask.delayed
+        def do_it(learner_idx, learner):
             prediction[:, learner_idx] = learner.predict(X, **predict_kwargs)
 
+        dask.compute([do_it(idx, l) for idx, l in enumerate(self.learner_list)])
         return prediction
 
     def vote_proba(self, X: modALinput, **predict_proba_kwargs) -> Any:
@@ -438,8 +443,15 @@ class Committee(BaseCommittee):
             # known class labels are the same for each learner
             # probability prediction is straightforward
 
-            for learner_idx, learner in enumerate(self.learner_list):
+            #for learner_idx, learner in enumerate(self.learner_list):
+            #    proba[:, learner_idx, :] = learner.predict_proba(X, **predict_proba_kwargs)
+
+            @dask.delayed
+            def do_it(learner_idx, learner):
                 proba[:, learner_idx, :] = learner.predict_proba(X, **predict_proba_kwargs)
+
+            dask.compute(
+                [do_it(idx, l) for idx, l in enumerate(self.learner_list)])
 
         else:
             for learner_idx, learner in enumerate(self.learner_list):
