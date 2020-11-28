@@ -2,16 +2,15 @@
 Disagreement measures and disagreement based query strategies for the Committee model.
 """
 from collections import Counter
-from typing import Tuple
 
 import numpy as np
 from scipy.stats import entropy
-from sklearn.exceptions import NotFittedError
 from sklearn.base import BaseEstimator
+from sklearn.exceptions import NotFittedError
 
+from modAL.models.base import BaseCommittee
 from modAL.utils.data import modALinput
 from modAL.utils.selection import multi_argmax, shuffled_argmax
-from modAL.models.base import BaseCommittee
 
 
 def vote_entropy(committee: BaseCommittee, X: modALinput, **predict_proba_kwargs) -> np.ndarray:
@@ -33,9 +32,7 @@ def vote_entropy(committee: BaseCommittee, X: modALinput, **predict_proba_kwargs
         votes = committee.vote(X, **predict_proba_kwargs)
     except NotFittedError:
         return np.zeros(shape=(X.shape[0],))
-
     p_vote = np.zeros(shape=(X.shape[0], len(committee.classes_)))
-    entr = np.zeros(shape=(X.shape[0],))
 
     for vote_idx, vote in enumerate(votes):
         vote_counter = Counter(vote)
@@ -43,8 +40,7 @@ def vote_entropy(committee: BaseCommittee, X: modALinput, **predict_proba_kwargs
         for class_idx, class_label in enumerate(committee.classes_):
             p_vote[vote_idx, class_idx] = vote_counter[class_label]/n_learners
 
-        entr[vote_idx] = entropy(p_vote[vote_idx])
-
+    entr = entropy(p_vote, axis=1)
     return entr
 
 
