@@ -412,13 +412,12 @@ class Committee(BaseCommittee):
         """
         prediction = np.zeros(shape=(X.shape[0], len(self.learner_list)))
 
-        print('vote')
-
         @dask.delayed
         def do_it(learner_idx, learner):
             prediction[:, learner_idx] = learner.predict(X, **predict_kwargs)
 
         dask.compute([do_it(idx, l) for idx, l in enumerate(self.learner_list)])
+
         return prediction
 
     def vote_proba(self, X: modALinput, **predict_proba_kwargs) -> Any:
