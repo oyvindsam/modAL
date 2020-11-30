@@ -27,21 +27,17 @@ def vote_entropy(committee: BaseCommittee, X: modALinput, **predict_proba_kwargs
     Returns:
         Vote entropy of the Committee for the samples in X.
     """
-    n_learners = len(committee)
+    # var(Exi) = Pi/C * (1- Pi/C) | ref B. Mozafari, Scaling Up Crowd-sourcing to Very Large Datasets: A Case for Active Learning.
+    # C = #classifiers, Pi = #positive
     try:
         votes = committee.vote(X, **predict_proba_kwargs)
     except NotFittedError:
         return np.zeros(shape=(X.shape[0],))
-    p_vote = np.zeros(shape=(X.shape[0], len(committee.classes_)))
+    c = len(committee)
+    pi_c = votes.sum(axis=1)/c
+    var = pi_c * (1 - pi_c)
 
-    for vote_idx, vote in enumerate(votes):
-        vote_counter = Counter(vote)
-
-        for class_idx, class_label in enumerate(committee.classes_):
-            p_vote[vote_idx, class_idx] = vote_counter[class_label]/n_learners
-
-    entr = entropy(p_vote, axis=1)
-    return entr
+    return var
 
 
 def consensus_entropy(committee: BaseCommittee, X: modALinput, **predict_proba_kwargs) -> np.ndarray:
